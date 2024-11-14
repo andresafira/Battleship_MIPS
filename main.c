@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 
 void init_ships_quant(int* ships_quant){
   ships_quant[0] = 1;
@@ -17,7 +18,7 @@ void put_pos(int* board, int i, int j, int val){
   board[20*i + j] = val;
 }
 
-int is_valid(int* board, int i, int j){
+int is_valid(int i, int j){
   return ((i >= 0 && i < 20) && (j >= 0 && j < 20));
 }
 
@@ -31,10 +32,9 @@ int ship_is_valid(int* board, int i, int j, int size, int hor){
     } else {
       a += 1;
     }
-
-    valid = valid && is_valid(board, a, b);
+    valid = valid && is_valid(a, b);
     if (valid) {
-      valid = valid && (get_pos(board, a, b) == 0);
+      valid = (get_pos(board, a, b) == 0);
     } else {
       return 0;
     }
@@ -48,7 +48,7 @@ void init_board(int* board){
   }
 }
 
-void print_board(int* board, int shipping){
+void print_board(int* board, int shipping) {
   int value = 0;
   for (int i = 0; i < 45; ++i){
     printf("=");
@@ -60,7 +60,7 @@ void print_board(int* board, int shipping){
       value = get_pos(board, i, j);
       if (value == 0 || value == 1 && !shipping){
         printf("  ");
-      } else if (value == 3 || value == 1 && shipping) {
+      } else if (value == 3 || value == 1) {
         printf("O ");
       } else if (value == 2) {
         printf("X ");
@@ -71,6 +71,7 @@ void print_board(int* board, int shipping){
   for (int i = 0; i < 45; ++i){
     printf("=");
   }
+  printf("\n");
 }
 
 void input_ship(int* board, int i, int j, int size, int horizontal){
@@ -86,11 +87,9 @@ void input_ship(int* board, int i, int j, int size, int horizontal){
 void shipping(int* board, int* ships_size){
   int i, j, valid_position, ship, direction_horizontal;
   int ships_quant[6];
-
   init_ships_quant(ships_quant);
-  
   print_board(board, 1);
-
+  int power = 1;
   while (ships_quant[5] > 0){
     do {
       printf("\nRow to input the ship: ");
@@ -101,9 +100,7 @@ void shipping(int* board, int* ships_size){
       scanf("%d", &direction_horizontal);
       printf("Choose the ship: (0: carrier, 1: cruiser, 2: destroyer, 3: submarine, 4: patrol) -> ");
       scanf("%d", &ship);
-      
       valid_position = ship_is_valid(board, i, j, ships_size[ship], direction_horizontal);
-
       if (!valid_position) {
         printf("===== Invalid Position =====");
       } else if (ships_quant[ship] == 0) {
@@ -114,81 +111,83 @@ void shipping(int* board, int* ships_size){
         ships_quant[5]--;
       }
     } while (!valid_position);
-
+    power <<= 1;
     input_ship(board, i, j, ships_size[ship], direction_horizontal);
-
     print_board(board, 1);
   }
 }
 
 void AI_shipping(int* board, int* ships_size) {
-  
-
+  int i, j, valid_position, ship, direction_horizontal;
+  int ships_quant[6];
+  init_ships_quant(ships_quant);
+  ship = 0;
+  while (ships_quant[5] > 0){
+    do {
+      i = rand() % 20;
+      j = rand() % 20;
+      direction_horizontal = rand() % 2;
+      valid_position = ship_is_valid(board, i, j, ships_size[ship], direction_horizontal);
+    } while (!valid_position);
+    ships_quant[ship]--;
+    ships_quant[5]--;
+    if (!ships_quant[ship]) {
+      ship++;
+    }
+    input_ship(board, i, j, ships_size[ship], direction_horizontal);
+  }
 };
 
-void test_helper(int* board1, int* board2) {
-  input_ship(board1, 0, 0, 5, 0);
-  input_ship(board1, 2, 2, 5, 0);
-  input_ship(board1, 4, 4, 3, 0);
-  input_ship(board1, 6, 6, 3, 0);
-  input_ship(board1, 8, 8, 3, 0);
-  input_ship(board1, 10, 10, 3, 0);
-  input_ship(board1, 12, 12, 2, 0);
-  input_ship(board1, 14, 14, 2, 0);
-  
-  input_ship(board2, 0, 0, 5, 1);
-  input_ship(board2, 2, 2, 5, 1);
-  input_ship(board2, 4, 4, 3, 1);
-  input_ship(board2, 6, 6, 3, 1);
-  input_ship(board2, 8, 8, 3, 1);
-  input_ship(board2, 10, 10, 3, 1);
-  input_ship(board2, 12, 12, 2, 1);
-  input_ship(board2, 14, 14, 2, 1);
-}
+int main() {
 
-int main(){
   int board1[400];
   int board2[400];
   int ships_size[5] = {5, 4, 3, 3, 2};
-
-  int test_shoot = 1;
-
+  
   init_board(board1);
   init_board(board2);
-
+  
   int singleplayer;
-
-  printf("Choose the Gamemode: (0: multiplayer, 1: singleplayer)");
-  scanf("%d", &singleplayer);
-
-  if (test_shoot) {
-    test_helper(board1, board2);
+  
+  printf("Choose the Gamemode: (0: multiplayer, 1: singleplayer) -> ");
+  scanf("%i", &singleplayer);
+  shipping(board1, ships_size);
+  printf("\nSwitch players now (use DC)\n");
+  
+  if (singleplayer) {
+    AI_shipping(board2, ships_size);
   } else {
-    shipping(board1, ships_size);
-    printf("\nSwitch players now (use DC)\n");
     shipping(board2, ships_size);
   }
   
-  int turn = 0, i, j, valid, cur_pos;
+  print_board(board2, 1);
+  int turn = 0, i, j, valid, cur_pos, AI_move;
   int n_pos[2] = {25, 25};
   int* current_board[2];
   current_board[0] = board2;
   current_board[1] = board1;
-
+  
   while (n_pos[0] > 0 && n_pos[1] > 0) {
     do {
-      printf("\nRow to shoot: ");
-      scanf("%d", &i);
-      printf("Column to shoot: ");
-      scanf("%d", &j);
-
-      valid = is_valid(current_board[turn], i, j);
+      AI_move = turn && singleplayer;
+      if (AI_move){
+        i = rand() % 20;
+        j = rand() % 20;
+      } else {
+        printf("\nRow to shoot: ");
+        scanf("%d", &i);
+        printf("Column to shoot: ");
+        scanf("%d", &j);
+      }
+      
+      valid = is_valid(i, j);
+      
       if (valid){
         cur_pos = get_pos(current_board[turn], i, j);
         valid = !(cur_pos == 2 || cur_pos == 3);
       }
-
-      if (!valid) {
+      
+      if (!valid && !AI_move) {
         printf("===== Invalid Position! =====");
       }
     } while (!valid);
@@ -199,17 +198,17 @@ int main(){
       put_pos(current_board[turn], i, j, 3);
       n_pos[turn] --;
     }
-
+    
+    printf("Board of the player %i \n", !turn+1);
     print_board(current_board[turn], 0);
-
     turn = !turn;
   }
-
+  
   if (n_pos[0] == 0) {
     printf("\n\n The Winner is Player 1");
   } else {
     printf("\n\n The Winner is Player 2");
   }
-
+  
   return 0;
 }
