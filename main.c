@@ -27,16 +27,17 @@ int ship_is_valid(int* board, int i, int j, int size, int hor){
   int a = i;
   int b = j;
   for (int d = 0; d < size; ++d){
-    if (hor) {
-      b += 1;
-    } else {
-      a += 1;
-    }
     valid = valid && is_valid(a, b);
     if (valid) {
       valid = (get_pos(board, a, b) == 0);
     } else {
       return 0;
+    }
+    
+    if (hor) {
+      b += 1;
+    } else {
+      a += 1;
     }
   }
   return valid;
