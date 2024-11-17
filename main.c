@@ -112,7 +112,6 @@ void shipping(int* board, int* ships_size){
         ships_quant[5]--;
       }
     } while (!valid_position);
-    power <<= 1;
     input_ship(board, i, j, ships_size[ship], direction_horizontal);
     print_board(board, 1);
   }
