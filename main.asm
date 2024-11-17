@@ -35,7 +35,12 @@ li $t0, 2
 sw $t0, 16($s0)
 
 la $a0, board1
+li $a1, 1
 jal SHIPPING_PROCESS
+
+la $a0, board1
+li $a1, 1
+jal PRINT_BOARD
 
 j MAIN_END
 ########### Functions ###########
@@ -338,11 +343,13 @@ lw $t9, 8($sp)
 addi $sp, $sp, 12
 
 jr $ra
+######################################
 
 SHIPPING_PROCESS:
 # $a0 : board_address
+# $a1 : is_singleplayer (boolean)
 
-addi $sp, $sp, -48
+addi $sp, $sp, -52
 
 sw $ra, 0($sp)
 sw $s0, 4($sp)
@@ -356,8 +363,11 @@ sw $t4, 32($sp)
 sw $t5, 36($sp)
 sw $t6, 40($sp)
 sw $t9, 44($sp)
+sw $s3, 48($sp)
 
 move $s0, $a0 # s0 = board_address
+move $s3, $a1 # s3 = AI
+li $t3, 0     # t3 = ship_id
 la $a0, ships_quant
 jal INIT_SHIPS_QUANT
 lw $t9, 20($a0)    # t9 = total number of ships remaining
@@ -366,7 +376,9 @@ la $s2, ships_size # s2 = ships_size_address
 
 WHILE_SHIPPING:
 beq $t9, 0, WHILE_SHIPPING_EXIT
+beq $s3, 1, AI_SHIPPING_SP
 
+######################
 USER_INPUT_SP:
 li $v0, 4 # print row input sentence
 la $a0, row_input
@@ -401,8 +413,23 @@ li $v0, 5 # get ship input and store in $t3
 syscall
 bgt $v0, 4, SHIP_USER_INPUT_SP
 blt $v0, 0, SHIP_USER_INPUT_SP
-SHIP_USER_INPUT_SP_EXIT:
-sll $t3, $v0, 2 # store the ship value times 4
+move $t3, $v0   # t3 = ship
+sll $t3, $t3, 2 # store the ship value times 4
+
+j AI_SHIPPING_SP_EXIT
+##################################
+AI_SHIPPING_SP:
+li $a0, 197
+li $a1, 20
+li $v0, 42
+syscall
+move $t0, $a0   # t0 = i
+syscall
+move $t1, $a0   # t1 = j
+li $a1, 2
+syscall
+move $t2, $a0   # t2 = direction_input
+AI_SHIPPING_SP_EXIT:
 
 move $a0, $t0  # a0 = i
 move $a1, $t1  # a1 = j
@@ -422,12 +449,19 @@ beq $t6, 0, LACK_SHIP_SP
 j USER_INPUT_SP_EXIT
 
 INVALID_POSITION_SP:
+beq $s3, 1, AI_SHIPPING_SP
 li $v0, 4
 la $a0, invalid_position
 syscall
 j USER_INPUT_SP
 
 LACK_SHIP_SP:
+beq $s3, 0, LACK_SHIP_USER_SP
+addi $t3, $t3, 4
+add $t5, $t3, $s1
+lw $t6, 0($t5)  # t6 = ships_quant[ship]
+j USER_INPUT_SP_EXIT
+LACK_SHIP_USER_SP:
 li $v0, 4
 la $a0, invalid_ship
 syscall
@@ -440,9 +474,11 @@ sw $t6, 0($t5)   # ships_quant[ship] --
 addi $t9, $t9, -1  # ships_quant[5] --
 
 move $a0, $t0  # a0 = i
+move $a1, $t1  # a1 = j
 
 jal INPUT_SHIP
 
+beq $s3, 1, WHILE_SHIPPING
 move $a0, $s0
 li $a1, 1
 jal PRINT_BOARD
@@ -462,8 +498,9 @@ lw $t4, 32($sp)
 lw $t5, 36($sp)
 lw $t6, 40($sp)
 lw $t9, 44($sp)
+lw $s3, 48($sp)
 
-addi $sp, $sp, 48
+addi $sp, $sp, 52
 
 jr $ra
 
