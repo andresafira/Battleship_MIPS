@@ -183,7 +183,7 @@ int main() {
       valid = is_valid(i, j);
       
       if (valid){
-        cur_pos = get_pos(current_board[turn], i, j);
+        cur_pos = get_pos(current_board[turn],i,j);
         valid = !(cur_pos == 2 || cur_pos == 3);
       }
       

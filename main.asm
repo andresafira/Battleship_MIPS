@@ -18,33 +18,163 @@ direction_input: .asciiz "Layout of the ship (0: vertical, 1: horizontal):"
 ship_input: .asciiz "Choose the ship (0: carrier, 1: cruiser, 2: destroyer, 3: submarine, 4: patrol):"
 invalid_position: .asciiz "===== Invalid Position ====="
 invalid_ship: .asciiz "===== Lack of specified ship ====="
+gamemode: .asciiz "Choose the Gamemode: (0: multiplayer, 1: singleplayer) -> "
+switch_players: .asciiz "\n\n\n\n\n\nSwitch players now (use DC)\n\n\n\n\n\n"
+row_shoot: .asciiz "\nRow to shoot: "
+column_shoot: .asciiz "Column to shoot: "
+player_win: .asciiz "\n\n======================\n\nThe Winner is Player "
 
 .text
 
-la $s0, ships_size
+la $s0, board1    
+la $s1, board2     
+la $s2, ships_size  
 
+li $v0, 4
+la $a0, gamemode
+syscall
+
+li $v0, 5
+syscall
+move $s3, $v0     # s3 = gamemode_opt
+
+###### Init Ships Size #######
 li $t0, 5
-sw $t0, 0($s0)
+sw $t0, 0($s2)
 li $t0, 4
-sw $t0, 4($s0)
+sw $t0, 4($s2)
 li $t0, 3
-sw $t0, 8($s0)
+sw $t0, 8($s2)
 li $t0, 3
-sw $t0, 12($s0)
+sw $t0, 12($s2)
 li $t0, 2
-sw $t0, 16($s0)
+sw $t0, 16($s2)
+#############################
 
-la $a0, board1
-li $a1, 1
+move $a0, $s0
+li $a1, 0
 jal SHIPPING_PROCESS
 
-la $a0, board1
-li $a1, 1
+li $v0, 4
+la $a0, switch_players
+syscall
+
+move $a0, $s1
+move $a1, $s3
+jal SHIPPING_PROCESS
+
+li $s4, 0     # turn (0: player 1, 1: player 2)
+li $s5, 25    # n of blocks remaining for player1
+li $s6, 25    # n of blocks remaining for player2
+
+WHILE_SHOOTING:
+beq $s5, 0, WHILE_SHOOTING_EXIT
+beq $s6, 0, WHILE_SHOOTING_EXIT
+
+beq $s4, 0, BOARD2_CHOOSE   # choose board to shoot
+move $s7, $s0               # s7 = board1
+j BOARD2_CHOOSE_EXIT
+BOARD2_CHOOSE:
+move $s7, $s1               # s7 = board2
+BOARD2_CHOOSE_EXIT:
+# s7 = current board being shooted
+
+and $t9, $s4, $s3   # t9 = AI_should_move
+beq $t9, 1, AI_MOVE
+
+USER_MOVE:
+li $v0, 4
+la $a0, row_shoot
+syscall
+li $v0, 5
+syscall
+move $t0, $v0      # t0 = i
+
+li $v0, 4
+la $a0, column_shoot
+syscall
+li $v0, 5
+syscall
+move $t1, $v0     # t1 = j
+j MOVE_CHOOSE_EXIT
+
+AI_MOVE:
+li $v0, 42
+li $a1, 20
+syscall
+move $t0, $a0     # t0 = i
+
+syscall
+move $t1, $a0     # t1 = j
+
+MOVE_CHOOSE_EXIT:
+move $a0, $t0
+move $a1, $t1
+jal IS_VALID
+move $t2, $v0     # t2 = valid_position
+
+beq $t2, 0, INVALID_POSITION_MAIN
+move $a0, $t0
+move $a1, $t1
+move $a2, $s7
+jal GET_POS
+move $t3, $v0     # t3 = pos value 
+
+slti $t2, $v0, 2  # if pos < 2 then it wasnt shot
+beq $t2, 0, INVALID_POSITION_MAIN
+j DO_WHILE_EXIT_MAIN
+
+INVALID_POSITION_MAIN:
+beq $t9, 1, AI_MOVE
+
+li $v0, 4
+la $a0, invalid_position
+syscall
+
+j USER_MOVE
+
+DO_WHILE_EXIT_MAIN:
+move $a0, $t0
+move $a1, $t1
+move $a2, $s7
+
+beq $t3, 1, SHOT_A_SHIP
+li $a3, 2
+j SHOT_A_SHIP_EXIT
+
+SHOT_A_SHIP:
+li $a3, 3
+beq $s4, 0, DECREASE_POINTS
+addi $s6, $s6, -1
+j SHOT_A_SHIP_EXIT
+DECREASE_POINTS:
+addi $s5, $s5, -1
+
+SHOT_A_SHIP_EXIT:
+jal PUT_POS
+
+move $a0, $s7
+li $a1, 0
 jal PRINT_BOARD
 
-j MAIN_END
-########### Functions ###########
+not $s4, $s4
+j WHILE_SHOOTING
+WHILE_SHOOTING_EXIT:
 
+li $v0, 4
+la $a0, player_win
+syscall
+
+li $v0, 1
+beq $s5, 0, PLAYER_WON
+li $a0, 1
+j MAIN_END
+
+PLAYER_WON:
+li $a0, 2
+j MAIN_END
+
+########### Functions ###########
 INIT_SHIPS_QUANT:   # ok!
 # $a0 : vector_address
 addi $sp, $sp, -4
@@ -345,7 +475,7 @@ addi $sp, $sp, 12
 jr $ra
 ######################################
 
-SHIPPING_PROCESS:
+SHIPPING_PROCESS:    # ok!
 # $a0 : board_address
 # $a1 : is_singleplayer (boolean)
 
@@ -419,7 +549,6 @@ sll $t3, $t3, 2 # store the ship value times 4
 j AI_SHIPPING_SP_EXIT
 ##################################
 AI_SHIPPING_SP:
-li $a0, 197
 li $a1, 20
 li $v0, 42
 syscall
@@ -506,3 +635,4 @@ jr $ra
 
 ########## Program End ##########
 MAIN_END:
+syscall
