@@ -50,6 +50,13 @@ sw $t0, 12($s2)
 li $t0, 2
 sw $t0, 16($s2)
 #############################
+move $a0, $s1
+move $a1, $s3
+jal SHIPPING_PROCESS
+
+move $a0, $s1
+li $a1, 1
+jal PRINT_BOARD
 
 move $a0, $s0
 li $a1, 0
@@ -62,6 +69,10 @@ syscall
 move $a0, $s1
 move $a1, $s3
 jal SHIPPING_PROCESS
+
+move $a0, $s1
+li $a1, 1
+jal PRINT_BOARD
 
 li $s4, 0     # turn (0: player 1, 1: player 2)
 li $s5, 25    # n of blocks remaining for player1
@@ -134,15 +145,22 @@ syscall
 j USER_MOVE
 
 DO_WHILE_EXIT_MAIN:
-move $a0, $t0
-move $a1, $t1
-move $a2, $s7
-
 beq $t3, 1, SHOT_A_SHIP
 li $a3, 2
 j SHOT_A_SHIP_EXIT
 
 SHOT_A_SHIP:
+beq $t9, 1, BEEP_SOUND_EXIT
+
+li $a0, 60
+li $a1, 250
+li $a2, 22
+li $a3, 127
+li $v0, 33
+syscall
+
+BEEP_SOUND_EXIT:
+
 li $a3, 3
 beq $s4, 0, DECREASE_POINTS
 addi $s6, $s6, -1
@@ -151,6 +169,10 @@ DECREASE_POINTS:
 addi $s5, $s5, -1
 
 SHOT_A_SHIP_EXIT:
+move $a0, $t0
+move $a1, $t1
+move $a2, $s7
+
 jal PUT_POS
 
 move $a0, $s7
@@ -589,6 +611,8 @@ beq $s3, 0, LACK_SHIP_USER_SP
 addi $t3, $t3, 4
 add $t5, $t3, $s1
 lw $t6, 0($t5)  # t6 = ships_quant[ship]
+add $a3, $t3, $s2
+lw $a3, 0($a3) # a3 = size of specified ship
 j USER_INPUT_SP_EXIT
 LACK_SHIP_USER_SP:
 li $v0, 4
