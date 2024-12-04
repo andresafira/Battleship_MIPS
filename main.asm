@@ -5,10 +5,11 @@ ships_size: .space 20
 board1: .space 1600
 board2: .space 1600
 
-equals_str: .asciiz "=============================================\n"
+columns:    .asciiz "     0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10| 11| 12| 13| 14| 15| 16| 17| 18| 19|\n"
+equals_str: .asciiz "====================================================================================\n"
 space_str: .asciiz " "
-first_vertical_delimiter: .asciiz "|| "
-last_vertical_delimiter: .asciiz "||\n"
+vertical_delimiter: .asciiz " | "
+last_vertical_delimiter: .asciiz "\n"
 newline: .asciiz "\n"
 wrong_shot_sign: .asciiz "X"
 correct_shot_sign: .asciiz "O"
@@ -50,33 +51,31 @@ sw $t0, 12($s2)
 li $t0, 2
 sw $t0, 16($s2)
 #############################
-move $a0, $s1
-move $a1, $s3
-jal SHIPPING_PROCESS
 
-move $a0, $s1
-li $a1, 1
-jal PRINT_BOARD
-
+# input ships for the first board 
 move $a0, $s0
 li $a1, 0
 jal SHIPPING_PROCESS
 
+# switch players message
 li $v0, 4
 la $a0, switch_players
 syscall
 
+# input ships for the second player
 move $a0, $s1
 move $a1, $s3
 jal SHIPPING_PROCESS
 
+# Show the map of the second player (to test the AI)
+# the following three lines can be removed for a fair game
 move $a0, $s1
 li $a1, 1
 jal PRINT_BOARD
 
 li $s4, 0     # turn (0: player 1, 1: player 2)
-li $s5, 25    # n of blocks remaining for player1
-li $s6, 25    # n of blocks remaining for player2
+li $s5, 25    # number of blocks remaining for player1
+li $s6, 25    # number of blocks remaining for player2
 
 WHILE_SHOOTING:
 beq $s5, 0, WHILE_SHOOTING_EXIT
@@ -90,10 +89,11 @@ move $s7, $s1               # s7 = board2
 BOARD2_CHOOSE_EXIT:
 # s7 = current board being shooted
 
-and $t9, $s4, $s3   # t9 = AI_should_move
+and $t9, $s4, $s3   # t9 = AI_should_move = player2_turn && is_singleplayer
 beq $t9, 1, AI_MOVE
 
 USER_MOVE:
+# get row to shoot
 li $v0, 4
 la $a0, row_shoot
 syscall
@@ -101,6 +101,7 @@ li $v0, 5
 syscall
 move $t0, $v0      # t0 = i
 
+# get column to shoot
 li $v0, 4
 la $a0, column_shoot
 syscall
@@ -121,7 +122,7 @@ move $t1, $a0     # t1 = j
 MOVE_CHOOSE_EXIT:
 move $a0, $t0
 move $a1, $t1
-jal IS_VALID
+jal IS_VALID      # check if move is valid
 move $t2, $v0     # t2 = valid_position
 
 beq $t2, 0, INVALID_POSITION_MAIN
@@ -153,8 +154,8 @@ SHOT_A_SHIP:
 beq $t9, 1, BEEP_SOUND_EXIT
 
 li $a0, 60
-li $a1, 250
-li $a2, 22
+li $a1, 200
+li $a2, 100
 li $a3, 127
 li $v0, 33
 syscall
@@ -380,14 +381,29 @@ sw $t9, 28($sp)
 move $a2, $a0  # $a2 = board
 move $t9, $a1  # $t9 = shipping
 
-li $v0, 4   # code for print syscall
+li $v0, 4
+la $a0, columns
+syscall
+
 la $a0, equals_str
 syscall
 
 li $t0, 0  # iterator (i)
 LOOP_I_PB:
 beq $t0, 20, LOOP_I_PB_EXIT
-la $a0, first_vertical_delimiter
+
+slti $a0, $t0, 10
+beq $a0, 0, TWO_DIGIT_NUMBER
+li $v0, 4
+la $a0, space_str
+syscall
+TWO_DIGIT_NUMBER:
+
+li $v0, 1
+move $a0, $t0
+syscall
+
+la $a0, vertical_delimiter
 li $v0, 4   # code for print syscall
 syscall
 
@@ -428,7 +444,7 @@ la $a0, wrong_shot_sign
 syscall
 
 IF_PB_EXIT:
-la $a0, space_str
+la $a0, vertical_delimiter
 syscall
 
 addi $t1, $t1, 1
@@ -443,6 +459,9 @@ j LOOP_I_PB
 LOOP_I_PB_EXIT:
 
 la $a0, equals_str
+syscall
+
+la $a0, columns
 syscall
 
 lw $ra, 0($sp)
